@@ -15,6 +15,7 @@ import codecs
 import re
 import os
 import unicodedata
+import glob
 
 def load_vocab():
     char2idx = {char: idx for idx, char in enumerate(hp.vocab)}
@@ -36,27 +37,17 @@ def load_data(mode="train"):
 
     if mode in ("train", "eval"):
         # Parse
-        fpaths, text_lengths, texts = [], [], []
-        transcript = os.path.join(hp.data, 'transcript.csv')
-        lines = codecs.open(transcript, 'r', 'utf-8').readlines()
-        total_hours = 0
-        if mode=="train":
-            lines = lines[1:]
-        else: # We attack only one sample!
-            lines = lines[:1]
+        file_paths = glob.glob(os.sep.join([hp.data, "*.wav"]))
 
-        for line in lines:
-            fname, _, text = line.strip().split("|")
+        texts = [(((os.path.basename(i).split("--"))[0]).split("_us_"))[0] for i in file_paths]
+        texts = [text_normalize(i) for i in texts]
+        texts_indexs = [[char2idx[char] for char in text] for text in texts]
 
-            fpath = os.path.join(hp.data, "wavs", fname + ".wav")
-            fpaths.append(fpath)
+        text_lengths = [len(i) for i in texts_indexs]
 
-            text = text_normalize(text) + "E"  # E: EOS
-            text = [char2idx[char] for char in text]
-            text_lengths.append(len(text))
-            texts.append(np.array(text, np.int32).tostring())
+        texts_indexs = [np.array(i, np.int32).tostring() for i in texts_indexs]
 
-        return fpaths, text_lengths, texts
+        return file_paths, text_lengths, texts_indexs
     else:
         # Parse
         lines = codecs.open(hp.test_data, 'r', 'utf-8').readlines()[1:]
